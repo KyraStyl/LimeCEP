@@ -1,0 +1,54 @@
+
+
+
+public void find_matches_once(int state, HashMap<String, TreeSet<events.ABCEvent>> subsets, ArrayList<events.ABCEvent> list, boolean ooo) {
+    State[] states = configs.states();
+    int current_state_p = states.length - 1 - state;
+    boolean stop = current_state_p < 0;
+
+    if (!stop) {
+        State current_state = states[current_state_p];
+        TreeSet<events.ABCEvent> subset = subsets.get(current_state.getEventType());
+
+        if (subset == null) {
+            System.out.println("set null");
+            return;
+        }
+
+        subset = (TreeSet<events.ABCEvent>) subset.headSet(list.get(0));
+
+        if (subset == null || subset.isEmpty()) {
+            return;
+        }
+
+        ArrayList<events.ABCEvent> run = new ArrayList<>();
+        ArrayList<events.ABCEvent> kleeneRun = new ArrayList<>();
+
+        for (events.ABCEvent e : subset.descendingSet()) {
+            ArrayList<events.ABCEvent> match = new ArrayList<>(list);
+
+            if (configs.isKleene(current_state.getEventType())) {
+                kleeneRun.add(0, e);
+            } else {
+                run.add(0, e);
+                break;
+            }
+        }
+
+        if (configs.isKleene(current_state.getEventType())) {
+            if (!kleeneRun.isEmpty()) {
+                match.addAll(0, kleeneRun);
+                find_matches_once(state + 1, subsets, match, ooo);
+            }
+        } else {
+            if (!run.isEmpty()) {
+                list.addAll(0, run);
+                find_matches_once(state + 1, subsets, list, ooo);
+            }
+        }
+
+    } else {
+        activeRunsNEW.add(list);
+        resultManager.acceptMatch(list, ooo);
+    }
+}

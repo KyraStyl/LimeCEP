@@ -1,0 +1,62 @@
+public void find_matches_once(int state, HashMap<String, TreeSet<events.ABCEvent>> subsets, ArrayList<events.ABCEvent> list, boolean ooo){
+		State[] states = configs.states();
+		int current_state_p = states.length - 1 - state;
+		boolean stop = current_state_p < 0 ;
+
+		if(!stop){
+			State current_state = states[current_state_p];
+
+			TreeSet<events.ABCEvent> subset = subsets.get(current_state.getEventType());
+			if (subset == null) {
+				System.out.println("set null"); //maybe return
+			}
+
+			subset = (TreeSet<events.ABCEvent>) subset.headSet(list.get(0));
+
+			if (subset == null || subset.isEmpty())
+				return;
+
+			ArrayList<events.ABCEvent> run = new ArrayList<>();
+
+			for(events.ABCEvent e : subset.descendingSet()) {
+				ArrayList<events.ABCEvent> match = new ArrayList<>(list);
+				if (configs.isKleene(current_state.getEventType())) { //if is kleene
+
+					events.ABCEvent nextEVT = subset.higher(e);
+					if(nextEVT != null ){ //if there is a higher event
+						System.out.println("mpika ki edw");
+						if(current_state_p - 1 >= 0){ //if there is a previous state
+							System.out.println("there is a prev state");
+							String prevStateTag = states[current_state_p - 1].getEventType();
+
+							TreeSet<events.ABCEvent> prevSet = subsets.get(prevStateTag);
+
+							if(!prevSet.floor(e).equals(prevSet.floor(nextEVT))){
+								System.out.println("diaforetika proigoumena events "+e.getName()+" kai "+nextEVT.getName());
+								match.addAll(0,run);
+								find_matches_once(state+1,subsets,match,ooo);
+							}
+						}
+						System.out.println("bgainw");
+					}
+					run.add(0,e);
+
+				}
+				else{
+					match.add(0,e);
+					find_matches_once(state+1, subsets, match,ooo);
+				}
+			}
+
+			if(configs.isKleene(current_state.getEventType()) && !run.isEmpty()){
+				list.addAll(0,run);
+				find_matches_once(state+1,subsets,list,ooo);
+			}
+
+		}else{
+			activeRunsNEW.add(list);
+			resultManager.acceptMatch(list,ooo);
+//			long latency = System.nanoTime() - r.getLifeTimeBegin();
+//			Profiling.updateLatency(latency);
+		}
+	}

@@ -1,0 +1,2 @@
+PATTERN SEQ(b b, c c, a a)
+WITHIN 1000 min

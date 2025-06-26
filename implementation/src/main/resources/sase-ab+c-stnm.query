@@ -1,0 +1,7 @@
+PATTERN SEQ(Stock a, Stock+ b[], Stock c)
+WHERE skip-till-next-match
+AND a.symbol = 0
+AND b[1].symbol = 1
+AND b[i].symbol = b[i-1].symbol
+AND c.symbol = 2
+WITHIN 1000 ms

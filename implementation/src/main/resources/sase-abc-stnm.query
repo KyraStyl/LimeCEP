@@ -1,0 +1,6 @@
+PATTERN SEQ(Stock a, Stock b, Stock c)
+WHERE skip-till-next-match
+AND a.symbol = 0
+AND b.symbol = 1
+AND c.symbol = 2
+WITHIN 1000

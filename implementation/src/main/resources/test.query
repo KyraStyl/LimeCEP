@@ -1,0 +1,2 @@
+PATTERN SEQ(Steps+ a[], Stairs+ b[], Bedroom c)
+WITHIN 10 min
