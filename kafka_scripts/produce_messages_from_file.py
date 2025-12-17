@@ -82,9 +82,9 @@ def main():
 
     messages = read_messages(args.file)
     if args.sources:
-        send_interval = {"Fitbit":args.fitbit,"Scale":args.scale,"Locations":args.locations, "Abc":0, "Terminate":0}
+        send_interval = {"Fitbit":args.fitbit,"Scale":args.scale,"Locations":args.locations, "Abc":0, "Terminate":0, "Cluster":0}
     else:
-        send_interval = {"Fitbit":args.interval,"Scale":args.interval,"Locations":args.interval, "Abc":0, "Terminate":0}
+        send_interval = {"Fitbit":args.interval,"Scale":args.interval,"Locations":args.interval, "Abc":0, "Terminate":0, "Cluster":0}
 
     for message in messages:
         topic = "Terminate"

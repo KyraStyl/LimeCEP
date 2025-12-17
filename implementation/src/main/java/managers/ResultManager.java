@@ -103,6 +103,7 @@ public class ResultManager {
 
         m.forEach(e -> System.out.print(e.getName() + " "));
         System.out.println("] -> [" + m.get(0).getTimestampDate() + " - " + m.get(m.size() - 1).getTimestampDate() + "]");
+        Main.updateTrie(m);
     }
 
     public void updateMatch(ArrayList<ABCEvent> oldMatch, ArrayList<ABCEvent> newMatch) {

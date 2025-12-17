@@ -1,5 +1,6 @@
 package utils;
 
+import cep.CEPQuery;
 import sase.sasesystem.query.State;
 import sase.sasesystem.query.Transition;
 
@@ -155,5 +156,9 @@ public class Configs {
 
     public HashMap<String, Transition> transitions() {
         return transitions;
+    }
+
+    public void setQuery(CEPQuery q) {
+
     }
 }

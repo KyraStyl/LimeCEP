@@ -1,5 +1,6 @@
 package managers;
 
+import cep.CEPTransition;
 import kafka.consumer.ConsumeInRangeMultipleTopics;
 import main.Main;
 import cep.CEPQuery;
@@ -97,6 +98,9 @@ public class EventManager<T> {
 
         //this is an IN-ORDER event
         if (oooscore == 0) {
+
+            updateCount(event);
+
             if (this.configs.last_state().equals(((ABCEvent) event).getType())) {
                 try {
                     cepEngine.runOnce((ABCEvent) event, (EventManager<ABCEvent>) this);
@@ -128,6 +132,157 @@ public class EventManager<T> {
             System.out.println(em_id + ": =====");
         }
     }
+
+    private void updateCount(T event) {
+        ABCEvent triggering = (ABCEvent) event;
+        boolean found = false;
+        int count;
+        String prevType= null;
+        for(String t:cepQuery.getTransitions().keySet()){
+            if(cepQuery.getTransitions().get(t).getEventType().equalsIgnoreCase(triggering.getEventType())) {
+                found = true;
+                String source = cepQuery.getTransitions().get(t).getSrc();
+                for(String p:cepQuery.getTransitions().keySet())
+                    if(cepQuery.getTransitions().get(p).getDest().equalsIgnoreCase(source))
+                        prevType = p;
+            }
+        }
+        TreeSet<ABCEvent> prevTreeset = null;
+        if(prevType!=null && !prevType.equalsIgnoreCase("start_event") && Main.STS.get(triggering.getSource()).containsKey(prevType)) {
+            prevTreeset = Main.STS.get(Main.typeSourceMapping.get(prevType)).get(prevType);
+
+            if(this.configs.policy().equalsIgnoreCase("skip-till-next-match")){
+                if(Main.STS.get(triggering.getSource()).get(triggering.getEventType()).lower(triggering)!=null){
+                    ABCEvent lowerEVT = Main.STS.get(triggering.getSource()).get(triggering.getEventType()).lower(triggering);
+                    prevTreeset = (TreeSet<ABCEvent>) prevTreeset.subSet(lowerEVT, true, triggering, true);
+                }
+            }
+
+            count = 0;
+            if (prevTreeset != null && !prevTreeset.isEmpty()) {
+                Date firstTs = prevTreeset.first().getTimestampDate();
+                Date lastTs = prevTreeset.last().getTimestampDate();
+
+                long windowLength = configs.windowLength();
+                long endTs = triggering.getTimestampDate().getTime();
+
+                Date windowStart = new Date(endTs - windowLength);
+                Date windowEnd = triggering.getTimestampDate();
+
+                // Restrict subset bounds based on the actual time window AND available data
+                Date lowerBound = windowStart.after(firstTs) ? windowStart : firstTs;
+                Date upperBound = windowEnd.before(lastTs) ? windowEnd : lastTs;
+
+                if (lowerBound.after(upperBound)) {
+                    count = 0;
+                    prevTreeset = new TreeSet<>();
+                    // safely skip the subset processing
+                } else {
+                    ABCEvent from = new ABCEvent("from", lowerBound, "", prevType, -1, true);
+                    ABCEvent to = new ABCEvent("to", upperBound, "", prevType, -1, true);
+                    prevTreeset = (TreeSet<ABCEvent>) prevTreeset.subSet(from, true, to, true);
+                }
+
+//                ABCEvent from = new ABCEvent("from", lowerBound, "", prevType, -1, true);
+//                ABCEvent to = new ABCEvent("to", upperBound, "", prevType, -1, true);
+//
+//                prevTreeset = (TreeSet<ABCEvent>) prevTreeset.subSet(from, true, to, true);
+
+                for (ABCEvent p : prevTreeset) {
+                    count += getRecursivePrefixCount(p, prevType);
+                }
+            }
+
+        }
+        else count = 0;
+        Main.STS.get(triggering.getSource()).get(triggering.getEventType());
+//        triggering.setPrefixCount(count);
+        Main.STS_counts.get(triggering.getSource()).get(triggering.getEventType()).put(triggering.getName(), count);
+//        System.out.println("Updating count for " + triggering.getName() + " from " + 0 + " to " + count);
+    }
+
+    private int getRecursivePrefixCount(ABCEvent ev, String type) {
+
+        Integer stored = Main.STS_counts
+                .get(ev.getSource())
+                .get(type)
+                .get(ev.getName());
+
+        if (stored != null && stored > 0 )
+            return stored;
+
+        // determine predecessor type
+        String prevType = null;
+        for (String t : cepQuery.getTransitions().keySet()) {
+            if (cepQuery.getTransitions().get(t).getEventType().equalsIgnoreCase(type)) {
+                String src = cepQuery.getTransitions().get(t).getSrc();
+                for (String p : cepQuery.getTransitions().keySet()) {
+                    if (cepQuery.getTransitions().get(p).getDest().equalsIgnoreCase(src)) {
+                        prevType = p;
+                    }
+                }
+            }
+        }
+
+        // BASE CASE
+        if (prevType == null || prevType.equalsIgnoreCase(configs.first_state())) {
+            Main.STS_counts
+                    .get(ev.getSource())
+                    .get(type)
+                    .put(ev.getName(), 1);
+            return 1;
+        }
+
+        // get predecessor events overlapping the window
+        Collection<ABCEvent> predSet = getPredecessorEventsForUpdate(ev, prevType);
+
+        int total = 0;
+        for (ABCEvent prv : predSet)
+            total += getRecursivePrefixCount(prv, prevType);
+
+        // memoize
+        Main.STS_counts
+                .get(ev.getSource())
+                .get(type)
+                .put(ev.getName(), total);
+
+        return total;
+    }
+
+    private Collection<ABCEvent> getPredecessorEventsForUpdate(ABCEvent e, String predType) {
+
+        String predSource = Main.typeSourceMapping.get(predType);
+        TreeSet<ABCEvent> all = Main.STS.get(predSource).get(predType);
+        if (all == null) return Collections.emptyList();
+
+        long W = configs.windowLength();
+        long tMin = e.getTimestampDate().getTime() - W;
+
+        TreeSet<ABCEvent> candidates;
+
+        if (configs.policy().equalsIgnoreCase("skip-till-next-match")) {
+            ABCEvent lower = Main.STS.get(e.getSource()).get(e.getEventType()).lower(e);
+            if (lower != null)
+                candidates = (TreeSet<ABCEvent>) all.subSet(lower, true, e, true);
+            else
+                candidates = (TreeSet<ABCEvent>) all.headSet(e, true);
+        } else {
+            candidates = (TreeSet<ABCEvent>) all.headSet(e, true);
+        }
+
+        List<ABCEvent> filtered = new ArrayList<>();
+
+        for (ABCEvent ev : candidates) {
+            long ts = ev.getTimestampDate().getTime();
+            if (ts >= tMin && ts < e.getTimestampDate().getTime()) {
+                filtered.add(ev);
+            }
+        }
+
+        return filtered;
+    }
+
+
 
     private boolean terminate(T event) {
         return ((ABCEvent) event).getName().equalsIgnoreCase("terminate");
@@ -424,6 +579,8 @@ public class EventManager<T> {
     public CEPQuery getQuery() {
         return this.cepQuery;
     }
+
+    public String getPolicy(){return this.configs.policy();}
 
     public void printRMprofiling() {
         resultManager.printProfiling();

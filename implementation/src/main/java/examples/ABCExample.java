@@ -27,6 +27,14 @@ public class ABCExample implements ExampleCEP{
         abc.addType("a", KeyValueEvent.class);
         abc.addType("b", KeyValueEvent.class);
         abc.addType("c", KeyValueEvent.class);
+        abc.addType("d", KeyValueEvent.class);
+        abc.addType("e", KeyValueEvent.class);
+        abc.addType("f", KeyValueEvent.class);
+        abc.addType("g", KeyValueEvent.class);
+        abc.addType("h", KeyValueEvent.class);
+        abc.addType("i", KeyValueEvent.class);
+        abc.addType("j", KeyValueEvent.class);
+        abc.addType("k", KeyValueEvent.class);
 
         this.sources.add(abc);
     }

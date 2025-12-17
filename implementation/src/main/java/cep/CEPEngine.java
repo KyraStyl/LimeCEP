@@ -29,6 +29,7 @@ public class CEPEngine {
     public  CEPEngine(){
         initializeEngine();
     }
+    public  CEPEngine(CEPQuery q){initializeEngine(q);}
 
     public CEPEngine(Configs configs, String em_id, ResultManager rm){
         this.configs = configs;
@@ -39,15 +40,34 @@ public class CEPEngine {
         initializeEngine();
     }
 
+    public CEPEngine(Configs configs, String em_id, ResultManager rm, CEPQuery q){
+        this.configs = configs;
+        this.nfaLocation = configs.nfaFileLocation();
+        this.resultManager = rm;
+        qparser = new CEPQueryParser();
+        this.em_id = em_id;
+        initializeEngine(q);
+    }
+
+    private void initializeEngine(CEPQuery q){
+        setQuery(q);
+        initializeEngine();
+    }
+
     private void initializeEngine() {
         try {
-            this.query = qparser.parseFromFile(this.nfaLocation);
+            if(!this.nfaLocation.equals(""))
+                this.query = qparser.parseFromFile(this.nfaLocation);
             this.transitions = this.query.getTransitions();
             this.activeRuns = new ArrayList<>();
             this.profiling = new Profiling("our");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void setQuery(CEPQuery q) {
+        this.query = q;
     }
 
     public void setResultManager(ResultManager resultManager) {
@@ -58,7 +78,7 @@ public class CEPEngine {
         Runtime runtime = Runtime.getRuntime();
         Long startTime = System.nanoTime();
         long windowTime = this.query.getTimeWindow();
-        System.out.println(em_id+": window time == "+windowTime);
+//        System.out.println(em_id+": window time == "+windowTime);
 
         long oldest_ac_timestamp = e.getTimestampDate().getTime() - windowTime;
         Date oldest_ts = new Date(oldest_ac_timestamp);
@@ -286,7 +306,7 @@ public class CEPEngine {
             }
 
             if(!subset.isEmpty() && !list.isEmpty()){
-                if(subset.first().compareTo(list.get(0))<=0 && subset.last().compareTo(list.get(0))>=0)
+                    if(subset.first().compareTo(list.get(0))<=0 && subset.last().compareTo(list.get(0))>=0)
                     subset = (TreeSet<events.ABCEvent>) subset.headSet(list.get(0),true);
                 else if(subset.first().compareTo(list.get(0))>0)
                     subset = null;

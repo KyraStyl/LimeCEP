@@ -90,8 +90,10 @@ public class CustomKafkaListener<T> implements Runnable {
                     tt = e.getEventType();
                     if(messageSet.containsKey(tt.toLowerCase()))
                         messageSet.get(e.getEventType()).add((T) e);
-                    else
+                    else {
+                        Main.evaluateUnknownEvent(e);
                         continue;
+                    }
                     if (this.engine.equals("LIMECEP"))
                         Main.updateManagers(e);
                     else if (this.engine.equals("SASE")) {

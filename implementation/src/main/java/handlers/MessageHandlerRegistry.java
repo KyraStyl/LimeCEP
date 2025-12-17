@@ -12,6 +12,7 @@ public class MessageHandlerRegistry {
         handlerMap.put("Location", new LocationMessageHandler());
         handlerMap.put("Terminate", new TerminateMessageHandler());
         handlerMap.put("ABC", new ABCMessageHandler());
+        handlerMap.put("Cluster", new ClusterMessageHandler());
     }
 
     public static KafkaMessageHandler getHandler(String messageType) {

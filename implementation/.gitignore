@@ -1,2 +1,5 @@
 .idea
 target/classes/*
+../data_generation/aj.stream
+../data_generation/ev_10m_single.json
+../data_generation/ev_1m_single.json

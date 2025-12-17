@@ -59,11 +59,13 @@ public class CEPQuery {
                 case "milliseconds":
                     this.timeWindow = value;
                     return;
+                case "s":
                 case "sec":
                 case "second":
                 case "seconds":
                     this.timeWindow = value * 1000;
                     return;
+                case "m":
                 case "min":
                 case "minute":
                 case "minutes":

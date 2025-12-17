@@ -18,6 +18,8 @@ public class ABCEvent implements Event {
     private long ingestionTime;
     private int symbol;
     private boolean tempEvent = false;
+    private long prefixCount = 0;
+
 
     @JsonCreator
     public ABCEvent(@JsonProperty("name") String name, @JsonProperty("timestamp") Date timestamp, @JsonProperty("source") String source, String type, int symbol){
@@ -92,6 +94,14 @@ public class ABCEvent implements Event {
     public Date getTimestampDate(){ return timestamp; }
 
     public int getTimestamp(){ return (int) timestamp.getTime(); }
+
+    public long getPrefixCount() {
+        return prefixCount;
+    }
+
+    public void setPrefixCount(long prefixCount) {
+        this.prefixCount = prefixCount;
+    }
 
     @Override
     public String getEventType() {

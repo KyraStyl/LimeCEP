@@ -56,7 +56,7 @@ def write_stream(stream, output_path, system):
                 f.write(event + '\n')
             else:  # limecep
                 f.write(json.dumps(event) + '\n')
-
+        f.write("{\"Terminate\":true, \"message\":\"terminate process\"}")
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate synthetic event stream.")
     parser.add_argument('--output', '-o', default='events.out')
