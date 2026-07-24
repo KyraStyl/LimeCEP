@@ -82,6 +82,7 @@ public class CustomKafkaListener<T> implements Runnable {
                 if (terminate) {
                     Main.printRMProfiling();
                     Main.printSMProfiling();
+//                    Main.trieManager.printPTstats();
                     System.exit(100);
                 }
                 ArrayList<ABCEvent> eventsExtracted = source.processMessage(message);

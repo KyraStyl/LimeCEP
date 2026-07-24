@@ -362,7 +362,7 @@ public class Engine {
 
 		ArrayList<events.ABCEvent> run = new ArrayList<>();
 		run.add(e);
-		System.out.println("Triggering match production process with event "+e.getName()+" @ " + e.getTimestampDate());
+//		System.out.println("Triggering match production process with event "+e.getName()+" @ " + e.getTimestampDate());
 		find_matches_once(1, subsets,run,false);
 //		deleteExpiredEvents();
 	}
@@ -844,7 +844,7 @@ public class Engine {
 			Event e = null;
 			long currentTime = 0;
 			while ((e = this.input.popEvent())!= null){// evaluate event one by one
-				System.out.println("evaluating event = "+e);
+//				System.out.println("evaluating event = "+e);
 				currentTime = System.nanoTime();
 				this.evaluateRunsForSkipTillNext(e);// evaluate existing runs
 				if(this.toDeleteRuns.size() > 0){
@@ -1895,6 +1895,7 @@ public void outputMatch(sase.sasesystem.engine.Match m, long latency) {
 		Profiling.numberOfMatches ++;
 		String newMatch = "----------Here is the No." + Profiling.numberOfMatches +" match----------\n";
 		newMatch+=m.toString()+"\n";
+		System.out.println(newMatch);
 		if(ConfigFlags.printResults){
 			if(!ConfigFlags.outFile.equalsIgnoreCase("")){
 				try {

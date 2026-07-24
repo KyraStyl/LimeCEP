@@ -3,13 +3,16 @@
 import json
 import argparse
 
-SYMBOL_REVERSE_MAP = {'a': 0, 'b': 1, 'c': 2}
+SYMBOL_REVERSE_MAP = {'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e':4, 'f': 5,'g': 6,'h': 7,'i': 8,'j': 9,'k': 10,'l': 11}
 
 def reverse_transform(input_path, output_path):
     with open(input_path, 'r') as infile, open(output_path, 'w') as outfile:
         for line in infile:
             event = json.loads(line)
-            symbol_num = SYMBOL_REVERSE_MAP.get(event['symbol'], -1)
+            if "symbol" not in event:
+                print(f"Skipping non-event line: {event}")
+                continue
+            symbol_num = SYMBOL_REVERSE_MAP.get(event["symbol"], -1)
             if symbol_num == -1:
                 raise ValueError(f"Unknown symbol: {event['symbol']}")
             output_line = f"{event['id']},{event['id']},{symbol_num},{event['price']},{event['volume']}\n"

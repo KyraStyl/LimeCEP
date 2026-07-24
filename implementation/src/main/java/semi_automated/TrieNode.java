@@ -54,6 +54,10 @@ public class TrieNode {
         this.count++;
     }
 
+    public void increaseCount(int increment) {
+        this.count += increment;
+    }
+
     public int getCount() {
         return count;
     }

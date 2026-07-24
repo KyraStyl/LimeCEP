@@ -1,5 +1,13 @@
 package stats;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import static stats.StatisticManager.getAvailableFile;
+
 public class Profiling {
 
     private long maxLatency;
@@ -56,26 +64,47 @@ public class Profiling {
     }
 
     public void printProfiling(){
+        Path outputDir = Paths.get("src/main/resources/new_experiments/sens_an/");
+        try {
+            Files.createDirectories(outputDir);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-        System.out.println();
-        System.out.println("**************Profiling Numbers*****************");
-        System.out.println("Solution: "+ this.solution);
-        if(this.alpha > -1)
-            System.out.println("Alpha adaptation: "+ this.alpha);
-        System.out.println("Number Of Events Processed: " + numberOfEvents);
-        System.out.println("Number Of Matches Found: " + numOfMatches);
-        System.out.println("Used memory is bytes: " + memoryUsed);
-        System.out.println("Used memory is megabytes: " + memoryUsed/(1024L*1024L));
+        String baseName = String.format(
+                "w%d_%s_%s_%s",
+                100,
+                numberOfEvents,
+                "sase",
+                "abc"
+        );
 
-        System.out.println("Maximum Latency in nano: " + maxLatency);
-        System.out.println("Minimum Latency in nano: " + minLatency);
+        Path filepath = getAvailableFile(outputDir, baseName);
+
+        try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(filepath))) {
+            out.println();
+            out.println("**************Profiling Numbers*****************");
+            out.println("Solution: " + this.solution);
+            if (this.alpha > -1)
+                out.println("Alpha adaptation: " + this.alpha);
+            out.println("Number Of Events Processed: " + numberOfEvents);
+            out.println("Number Of Matches Found: " + numOfMatches);
+            out.println("Used memory is bytes: " + memoryUsed);
+            out.println("Used memory is megabytes: " + memoryUsed / (1024L * 1024L));
+
+            out.println("Maximum Latency in nano: " + maxLatency);
+            out.println("Minimum Latency in nano: " + minLatency);
 
 
+            if (numOfMatches > 0)
+                out.println("Average Latency in nano: " + avgLatency);
+            else
+                out.println("No matches found!");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
-        if (numOfMatches > 0)
-            System.out.println("Average Latency in nano: " + avgLatency);
-        else
-            System.out.println("No matches found!");
+        System.out.println("Profiling report written to: " + filepath.toAbsolutePath());
 
     }
 

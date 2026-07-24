@@ -96,7 +96,7 @@ public class StockEvent implements Event{
 	}
 
 	public StockEvent(String line){
-		String tokens[] = line.split(", ");
+		String tokens[] = line.split(",");
 		this.id = Integer.parseInt(tokens[0]);
 		this.timestamp = Integer.parseInt(tokens[1]);
 		this.symbol = Integer.parseInt(tokens[2]);

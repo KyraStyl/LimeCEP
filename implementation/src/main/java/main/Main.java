@@ -2,7 +2,7 @@ package main;
 
 import examples.ClusterExample;
 import examples.LCExample;
-import org.apache.kafka.common.protocol.types.Field;
+import operator_exploration.GlobalStats;
 import sase.sasesystem.UI.CommandLineUI;
 import events.*;
 import examples.ABCExample;
@@ -17,7 +17,6 @@ import semi_automated.TrieManager;
 import stats.StatisticManager;
 
 import java.io.IOException;
-import java.sql.SQLOutput;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
@@ -44,7 +43,18 @@ public class Main {
     public static TrieManager trieManager = new TrieManager();
     public static boolean suggestPatterns = true;
 //    public static boolean suggestPatterns = false;
-    public static String updateAlgorithm ="ic";
+    public static String updateAlgorithm ="operator-explore";
+//    public static String updateAlgorithm ="ic";
+
+    // new imports for operator-based exploration
+    public static List<ABCEvent> explorationBuffer = new ArrayList<>();
+    public static int BATCH_SIZE = 1000;
+    public static GlobalStats globalProbStats = new GlobalStats();
+    public static int eventCounter = 0;
+    public static boolean debug = false;
+    public static int windowSize = 10000;
+    public static String dataset = "5m";
+    public static String operatorConfiguration = "all";
 
     public static void main(String[] args) throws ExecutionException, InterruptedException {
 
@@ -58,20 +68,24 @@ public class Main {
         String oooType = "ooo";
 //        Boolean isSimple = true;
         Boolean isSimple = false;
-//        String pattern = "abc";
+        String pattern = "abc";
+//        String pattern = "ad";
 //        String pattern = "ae";
-        String pattern = "clusterq1";
+ //       String pattern = "af";
+//        String pattern = "ag";
+//        String pattern = "clusterq1";
 //        String pattern = "clusterq2";
 //        String pattern = "af";
-//        String pattern = "ab+c";
+//        String pattern = "abc";
 //        String pattern = "a+b+c";
 //        String pattern = "multiple";
 //
-//        String policy = "Skip-till-next-match";
-        String policy = "Skip-till-any-match";
+        String policy = "Skip-till-next-match";
+//        String policy = "Skip-till-any-match";
 
-        Boolean withCorrection = true;
-        trieManager.setThetaConf(0.001);
+        Boolean withCorrection = false;
+        trieManager.setThetaFreq(0.2);
+        trieManager.setThetaRare(0.001);
 
         if (engine.equalsIgnoreCase("LIMECEP")){
             KafkaAdminClient kafkaAdminClient = new KafkaAdminClient(defaultBootStrapServer);
@@ -79,8 +93,8 @@ public class Main {
         }
 
 //        ExampleCEP ex = new LCExample();
-//        ExampleCEP ex = new ABCExample();
-        ExampleCEP ex = new ClusterExample();
+        ExampleCEP ex = new ABCExample();
+//        ExampleCEP ex = new ClusterExample();
         // ---------------------------
 
         ex.initializeExample();
@@ -113,6 +127,12 @@ public class Main {
             queriesToRun.add("src/main/resources/ab+c.query");
         if(pattern.equalsIgnoreCase("a+b+c"))
             queriesToRun.add("src/main/resources/a+b+c.query");
+        if(pattern.equalsIgnoreCase("ad"))
+            queriesToRun.add("src/main/resources/ad.query");
+        if(pattern.equalsIgnoreCase("af"))
+            queriesToRun.add("src/main/resources/af.query");
+        if(pattern.equalsIgnoreCase("ag"))
+            queriesToRun.add("src/main/resources/ag.query");
         if(pattern.equalsIgnoreCase("ae"))
             queriesToRun.add("src/main/resources/ae.query");
         if(pattern.equalsIgnoreCase("clusterq1"))
@@ -121,7 +141,8 @@ public class Main {
             queriesToRun.add("src/main/resources/cluster-q2.query");
 
 
-        generalStats = new StatisticManager(0.6,0.2,0.2,2.5);
+        String engine_Exp = engine.equalsIgnoreCase("LIMECEP")?suggestPatterns?"lc-oe":"lc":engine.toLowerCase();
+        generalStats = new StatisticManager(0.6,0.2,0.2,2.5,engine_Exp,pattern,windowSize,dataset);
         generalStats.initializeManager(ex.getListofTypes());
         generalStats.setEstimated(estimatedArrivalTime);
 
@@ -175,6 +196,14 @@ public class Main {
             System.out.println(em_id+": last_state = "+em.getLastState());
             System.out.println();
 
+            trieManager.initialize(
+                    Main.globalProbStats,
+                    trieManager.getThetaFreq(),
+                    trieManager.getThetaRare(),
+                    6,      // max pattern length
+                    100      // exploration budget
+            );
+
 //            patternTrie.insert("abcd");
 //
 ////            patternTrie.printTrie();
@@ -206,10 +235,11 @@ public class Main {
 
     private static void initializeSASE(Boolean sasext, Boolean ooo, String oootype, Boolean simple, String query, String policy) {
         String engine = sasext?"core":"sasesystem";
-        String dataset = "src/main/resources/dataset";
-        dataset = ooo?dataset+"-"+oootype:dataset+"-test";
-        dataset = simple?dataset+"-simple":dataset;
-        dataset+= "-sase.stream";
+//        String dataset = "src/main/resources/dataset";
+//        dataset = ooo?dataset+"-"+oootype:dataset+"-test";
+//        dataset = simple?dataset+"-simple":dataset;
+//        dataset+= "-sase.stream";
+        String dataset = "src/main/resources/nu_10t_1m_sase.stream";
         String policyShort = policy.equalsIgnoreCase("Skip-till-next-match")?"stnm":"stam";
         String[] generatedArgs = {
                 "-q", "src/main/resources/sase-"+query+"-"+policyShort+".query", // Query file
@@ -217,7 +247,7 @@ public class Main {
                 "-t", "stock",                  // Event type
                 "-e", engine,                   // Engine type (sase or core)
                 "-w",
-                "-o", "src/main/resources/output-"+engine+"-"+query+"-"+policyShort+".txt"       // Output file for results
+//                "-o", "src/main/resources/output-"+engine+"-"+query+"-"+policyShort+".txt"       // Output file for results
         };
 
         System.out.println("Generated arguments for engine: "+engine);
@@ -273,16 +303,148 @@ public class Main {
     }
 
     public static void updateManagers(ABCEvent e){
-//        System.out.println("UPDATING MANAGERS FOR EVENT "+e+" OF TYPE "+e.getEventType());
+
+        ensureEventStructures(e);
+
         generalStats.updateStats(e);
-        if (!etq.containsKey(e.getType()) && Main.suggestPatterns) {
-//            System.out.println("THIS EVENT IS NOT IN ANY PATTERN-QUERY");
-            evaluateUnknownEvent(e);
-        }else if(etq.containsKey(e.getType()))
-            for(String query: etq.get(e.getType())){
-                evManagers.get(query).acceptEvent(e.getSource(),e);
+        globalProbStats.update(e.getEventType());
+
+        eventCounter++;
+
+        if (suggestPatterns && eventCounter % BATCH_SIZE == 0) {
+            // Proposed full LC-OE
+//            trieManager.runOperatorBatch();
+
+            // Ablation variants
+//             trieManager.runBatchAblation(false, true,  true,  true, true,  true);  // No Eligible Types
+//             trieManager.runBatchAblation(true,  false, true,  true, true,  true);  // No Importance Filter
+//             trieManager.runBatchAblation(true,  true,  false, true, true,  true);  // No Bottlenecks
+            // trieManager.runBatchAblation(true,  true,  true,  true, false, false); // Extension Only
+            // trieManager.runBatchAblation(true,  true,  true,  true, true,  false); // Extension + Variation
+            // trieManager.runBatchAblation(true,  true,  true,  true, false, true); // Extension + Swap
+            // trieManager.runBatchAblation(true,  true,  true,  false, true, true); // Variation + Swap
+            // trieManager.runBatchAblation(true, true, true, false, true, false);  // Variation Only
+            // trieManager.runBatchAblation(true, true, true, false, false, true);  // Swap Only
+            // trieManager.runBatchAblation(true,  true,  true,  true, true,  true); // ALL operators
+
+
+
+            // Exhaustive / Apriori-style baseline
+//             trieManager.runAprioriBatch();
+
+            switch (operatorConfiguration.toLowerCase()) {
+
+                case "ext":
+                    trieManager.runBatchAblation(
+                            true, true, true,
+                            true, false, false
+                    );
+                    break;
+
+                case "var":
+                    trieManager.runBatchAblation(
+                            true, true, true,
+                            false, true, false
+                    );
+                    break;
+
+                case "swap":
+                    trieManager.runBatchAblation(
+                            true, true, true,
+                            false, false, true
+                    );
+                    break;
+
+                case "ext_var":
+                    trieManager.runBatchAblation(
+                            true, true, true,
+                            true, true, false
+                    );
+                    break;
+
+                case "ext_swap":
+                    trieManager.runBatchAblation(
+                            true, true, true,
+                            true, false, true
+                    );
+                    break;
+
+                case "var_swap":
+                    trieManager.runBatchAblation(
+                            true, true, true,
+                            false, true, true
+                    );
+                    break;
+
+                case "all":
+                    trieManager.runOperatorBatch();
+                    break;
+
+                case "exhaustive":
+                    trieManager.runAprioriBatch();
+                    break;
+
+                default:
+                    throw new IllegalArgumentException(
+                            "Unknown operator configuration: "
+                                    + operatorConfiguration
+                    );
             }
+        }
+
+        // CEP execution for query events
+        if(etq.containsKey(e.getType())) {
+
+            for(String query: etq.get(e.getType())) {
+                evManagers.get(query).acceptEvent(e.getSource(), e);
+            }
+
+        } else {
+            evaluateUnknownEvent(e);
+        }
+
+        Set<String> activated = trieManager.getActivatedPatterns();
+
+        for(String pattern : activated) {
+
+            if(pattern.endsWith(e.getEventType())) {
+
+                trieManager.evaluateEvent(
+                        updateAlgorithm,
+                        pattern,
+                        e,
+                        queries.values().iterator().next().getWithin(),
+                        evManagers.values().iterator().next().getPolicy()
+                );
+            }
+        }
     }
+
+//    public static void runBatchExploration() {
+//
+//        System.out.println("=== RUNNING BATCH EXPLORATION ===");
+//
+//        for (String qid : qte.keySet()) {
+//
+//            String basePattern = String.join("", qte.get(qid));
+//
+//            for (ABCEvent e : explorationBuffer) {
+//
+//                if (!basePattern.contains(e.getType())) {
+//
+//                    trieManager.evaluateEvent(
+//                            updateAlgorithm,
+//                            basePattern,
+//                            e,
+//                            queries.get(qid).getWithin(),
+//                            evManagers.get(qid).getPolicy()
+//                    );
+//                }
+//            }
+//        }
+//
+//        System.out.println("=== BATCH DONE ===");
+//    }
 
     public static void runSASEonce(ABCEvent e) {
 
@@ -304,18 +466,35 @@ public class Main {
 
 
     public static void evaluateUnknownEvent(ABCEvent e) {
-        System.out.println("EVALUATING UNKNOWN EVENT "+e+" OF TYPE "+e.getEventType());
+//        System.out.println("EVALUATING UNKNOWN EVENT "+e+" OF TYPE "+e.getEventType());
         for(String qid: qte.keySet()){
             String query = "";
             for (String evt: qte.get(qid))
                 query+=evt;
-            System.out.println("Extracted query: "+query);
+//            System.out.println("Extracted query: "+query);
             if(!query.contains(e.getType())) {
                 Main.STS.get(e.getSource()).computeIfAbsent(e.getType(), k -> new TreeSet<>(new TimestampComparator()));
                 Main.STS.get(e.getSource()).get(e.getEventType()).add(e);
-                trieManager.evaluateEvent(updateAlgorithm,query, e, queries.get(qid).getWithin(), evManagers.get(qid).getPolicy());
+//                trieManager.evaluateEvent(updateAlgorithm,query, e, queries.get(qid).getWithin(), evManagers.get(qid).getPolicy());
             }
         }
+    }
+
+    private static void ensureEventStructures(ABCEvent e) {
+
+        String source = e.getSource();
+        String type = e.getEventType();
+
+        STS.computeIfAbsent(source, k -> new HashMap<>());
+        STS_counts.computeIfAbsent(source, k -> new HashMap<>());
+
+        STS.get(source)
+                .computeIfAbsent(type,
+                        k -> new TreeSet<>(new TimestampComparator()));
+
+        STS_counts.get(source)
+                .computeIfAbsent(type,
+                        k -> new HashMap<>());
     }
 
     public static void updateTrie(ArrayList<ABCEvent> m) {

@@ -1,2 +1,2 @@
 PATTERN SEQ(a+ a[], b+ b[], c c)
-WITHIN 1000 min
+WITHIN 10000 min

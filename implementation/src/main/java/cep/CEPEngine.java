@@ -115,7 +115,7 @@ public class CEPEngine {
         }
 
         ArrayList<ABCEvent> run = new ArrayList<>();
-        System.out.println(em_id+": Triggering match production process with event "+e.getName()+" @ " + e.getTimestampDate());
+//        System.out.println(em_id+": Triggering match production process with event "+e.getName()+" @ " + e.getTimestampDate());
 
         if ("Skip-till-next-match".equalsIgnoreCase(configs.policy())) {
             TreeSet<ABCEvent> lastTreeset = eventManager.getTreeset(e.getSource()).get(e.getEventType());

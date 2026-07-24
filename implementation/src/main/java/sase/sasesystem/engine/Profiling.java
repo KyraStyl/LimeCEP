@@ -27,8 +27,15 @@ package sase.sasesystem.engine;
 //
 //import sase.hybridutils.CetManager;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Locale;
+
+import static stats.StatisticManager.getAvailableFile;
 
 /**
  * This class profiles the numbers of performance
@@ -170,51 +177,73 @@ public class Profiling {
 	 * prints the profiling numbers in console
 	 */
 	public static void printProfiling(){
-		
-		System.out.println();
-		System.out.println("**************Profiling Numbers*****************");
-		System.out.println("Engine used: " + ConfigFlags.engine.toUpperCase(Locale.ROOT));
-		System.out.println("Total Running Time: " + ((double)totalRunTime  / 1_000_000_000)+" seconds");
-		System.out.println("Number Of Events Processed: " + numberOfEvents);
-		System.out.println("Number Of Runs Created: " + numberOfRuns);
-		System.out.println("Number Of Matches Found: " + numberOfMatches);
-		if(maxSizeMaximal > 0) System.out.println("Max Maximal Size: "+maxSizeMaximal);
-		System.out.println("Used memory is bytes: " + memoryUsed);
-		System.out.println("Used memory is megabytes: " + memoryUsed/(1024L*1024L));
+        Path outputDir = Paths.get("src/main/resources/new_experiments/sens_an/");
+        try {
+            Files.createDirectories(outputDir);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-		if(ConfigFlags.engine.equalsIgnoreCase("cet")){
-			//System.out.print("Size of slides: ");
-			//printList(slideSizes);
-			System.out.print("Number of cets per slide: ");
-			//printList(slideCets);
-			System.out.print("Maximum Latency per slide in nano: ");
-			//printList(slideslatencyMax);
-			System.out.print("Minimum Latency per slide in nano: ");
-			transfMin();
-			//printList(slideslatencyMin);
-			System.out.print("Average Latency per slide in nano: ");
-			transfAvg();
-			//printList(slideslatencyAvg);
+        String baseName = String.format(
+                "w%d_%s_%s_%s",
+                1000,
+                numberOfEvents,
+                "sase",
+                "ag"
+        );
 
-		}
-		System.out.println("Maximum Latency in nano: " + maxLatency);
-		System.out.println("Minimum Latency in nano: " + minLatency);
+        Path filepath = getAvailableFile(outputDir, baseName);
+
+        try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(filepath))) {
+            out.println();
+            out.println("**************Profiling Numbers*****************");
+            out.println("Engine used: " + ConfigFlags.engine.toUpperCase(Locale.ROOT));
+            out.println("Total Running Time: " + ((double) totalRunTime / 1_000_000_000) + " seconds");
+            out.println("Number Of Events Processed: " + numberOfEvents);
+            out.println("Number Of Runs Created: " + numberOfRuns);
+            out.println("Number Of Matches Found: " + numberOfMatches);
+            if (maxSizeMaximal > 0) out.println("Max Maximal Size: " + maxSizeMaximal);
+            out.println("Used memory is bytes: " + memoryUsed);
+            out.println("Used memory is megabytes: " + memoryUsed / (1024L * 1024L));
+
+            if (ConfigFlags.engine.equalsIgnoreCase("cet")) {
+                //System.out.print("Size of slides: ");
+                //printList(slideSizes);
+                out.print("Number of cets per slide: ");
+                //printList(slideCets);
+                out.print("Maximum Latency per slide in nano: ");
+                //printList(slideslatencyMax);
+                out.print("Minimum Latency per slide in nano: ");
+                transfMin();
+                //printList(slideslatencyMin);
+                out.print("Average Latency per slide in nano: ");
+                transfAvg();
+                //printList(slideslatencyAvg);
+
+            }
+            out.println("Maximum Latency in nano: " + maxLatency);
+            out.println("Minimum Latency in nano: " + minLatency);
 //		if(ConfigFlags.engine.equalsIgnoreCase("cet"))
 //			System.out.println("Average Latency in nano: " + avgLatency/CetManager.cetsdetectedtotal);
 //		else
-			System.out.println("Average Latency in nano: " + avgLatency/numberOfMatches);
+            out.println("Average Latency in nano: " + avgLatency / numberOfMatches);
 
 
-		if(ConfigFlags.hasNegation){
-			System.out.println("Number of Negated Matches: " + negatedMatches );
-		}
-	
-		
-		long throughput1 = 0;
-		if(totalRunTime > 0){
-			throughput1 = numberOfEvents* 1000000000/totalRunTime ;
-			System.out.println("Throughput: " + throughput1 + " events/second");
-		}
+            if (ConfigFlags.hasNegation) {
+                out.println("Number of Negated Matches: " + negatedMatches);
+            }
+
+
+            long throughput1 = 0;
+            if (totalRunTime > 0) {
+                throughput1 = numberOfEvents * 1000000000 / totalRunTime;
+                out.println("Throughput: " + throughput1 + " events/second");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        System.out.println("Profiling report written to: " + filepath.toAbsolutePath());
 	}
 
 	private static void transfMin() {

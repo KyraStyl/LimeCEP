@@ -2,6 +2,7 @@ package semi_automated;
 
 import org.apache.kafka.common.protocol.types.Field;
 
+import java.io.PrintWriter;
 import java.util.*;
 
 public class PatternTrie {
@@ -9,6 +10,7 @@ public class PatternTrie {
     private final TrieNode root = new TrieNode("\u0000", null);
     private String originalPattern = "";
     private int matches;
+    private final Set<String> activatedPatterns = new HashSet<>();
 
     public PatternTrie() {}
 
@@ -18,7 +20,7 @@ public class PatternTrie {
             node = node.addChild(String.valueOf(c));
             if (!initialization) {
                 node.incrementCount();
-                matches = 0;
+//                matches = 0;
             }
         }
         node.markAsEnd();
@@ -34,6 +36,16 @@ public class PatternTrie {
         }
         node.markAsEnd();
         matches++;
+    }
+
+    public void insertMultiple(String pattern, int count){
+        TrieNode node = root;
+        for (char c : pattern.toCharArray()) {
+            node = node.addChild(String.valueOf(c));
+            node.increaseCount(count);
+        }
+        node.markAsEnd();
+        matches+=count;
     }
 
     public String getOriginalPattern() {
@@ -146,6 +158,28 @@ public class PatternTrie {
         return freq / matches;
     }
 
+//    public double calculateConfidence(String pattern) {
+//
+//        if (pattern == null || pattern.length() <= 1)
+//            return 1;
+//
+//        TrieNode node = findNode(pattern);
+//        if (node == null)
+//            return 0;
+//
+//        TrieNode parent = node.getParent();
+//        if (parent == null)
+//            return 1;
+//
+//        double childSupport = node.getCount();
+//        double parentSupport = parent.getCount();
+//
+//        if (parentSupport == 0)
+//            return 0;
+//
+//        return childSupport / parentSupport;
+//    }
+
     /**
      * Get all complete patterns in the trie with their confidence and support values.
      *
@@ -257,8 +291,8 @@ public class PatternTrie {
     /**
      * Print all patterns with their confidence and support values.
      */
-    public void printPatternStats() {
-        System.out.println("=== Pattern Statistics ===");
+    public void printPatternStats(PrintWriter out) {
+        out.println("=== Pattern Statistics ===");
         Map<String, double[]> stats = getAllPatternStats();
 
         // Sort by pattern for consistent output
@@ -268,19 +302,19 @@ public class PatternTrie {
         for (String pattern : patterns) {
             double confidence = stats.get(pattern)[0];
             int support = (int) stats.get(pattern)[1];
-            System.out.printf("Pattern: %s | Confidence: %.2f%% | Support: %d%n",
+            out.printf("Pattern: %s | Confidence: %.2f%% | Support: %d%n",
                     pattern, confidence * 100, support);
         }
-        System.out.println("==========================");
+        out.println("==========================");
     }
 
     /**
      * Print the entire trie structure in a tree format.
      */
-    public void printTrie() {
-        System.out.println("=== Pattern Trie Structure ===");
-        printTrieHelper(root, "", true);
-        System.out.println("==============================");
+    public void printTrie(PrintWriter out) {
+        out.println("=== Pattern Trie Structure ===");
+        printTrieHelper(root, "", true,out);
+        out.println("==============================");
     }
 
     /**
@@ -289,13 +323,13 @@ public class PatternTrie {
      * @param prefix Prefix for formatting (indentation and tree lines)
      * @param isLast Whether this is the last child of its parent
      */
-    private void printTrieHelper(TrieNode node, String prefix, boolean isLast) {
+    private void printTrieHelper(TrieNode node, String prefix, boolean isLast, PrintWriter out) {
         // Print current node
         String nodeValue = node.getValue().equals("\u0000") ? "[ROOT]" : node.getValue();
         String endMarker = node.isEndOfPattern() ? " --- " : "";
         String countInfo = node.getCount() > 0 ? " (count: " + node.getCount() + ")" : "";
 
-        System.out.println(prefix + (isLast ? "└── " : "├── ") + nodeValue + endMarker + countInfo);
+        out.println(prefix + (isLast ? "└── " : "├── ") + nodeValue + endMarker + countInfo);
 
         // Prepare prefix for children
         String childPrefix = prefix + (isLast ? "    " : "│   ");
@@ -307,7 +341,48 @@ public class PatternTrie {
         // Print each child
         for (int i = 0; i < sortedChildren.size(); i++) {
             boolean isLastChild = (i == sortedChildren.size() - 1);
-            printTrieHelper(sortedChildren.get(i).getValue(), childPrefix, isLastChild);
+            printTrieHelper(sortedChildren.get(i).getValue(), childPrefix, isLastChild,out);
         }
+    }
+
+    public Set<String> getActivatedPatterns() {
+        return activatedPatterns;
+    }
+
+//    public Set<String> getActivatedPatterns() {
+//
+//        Set<String> result = new HashSet<>();
+//        collectActivated(root, "", result);
+//        return result;
+//    }
+
+    private void collectActivated(TrieNode node,
+                                  String prefix,
+                                  Set<String> result) {
+
+        if (node.isEndOfPattern())
+            result.add(prefix);
+
+        for (var e : node.getChildren().entrySet()) {
+            collectActivated(e.getValue(),
+                    prefix + e.getKey(),
+                    result);
+        }
+    }
+
+    public void activatePattern(String pattern) {
+
+        TrieNode node = root;
+
+        for (char c : pattern.toCharArray()) {
+            node = node.addChild(String.valueOf(c));
+        }
+
+        node.markAsEnd();
+        activatedPatterns.add(pattern);
+    }
+
+    public int countActivatedPatterns() {
+        return getActivatedPatterns().size();
     }
 }
